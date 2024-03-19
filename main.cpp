@@ -14,8 +14,83 @@ path operator""_p(const char* data, std::size_t sz) {
     return path(data, data + sz);
 }
 
-// напишите эту функцию
-bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories);
+bool Preprocess(const path& in_file, const path& out_file,
+                const vector<path>& include_directories) {
+    ifstream ifs(in_file);
+    if (!ifs.is_open()) {
+        cerr << "Failed to open input file: "s << in_file << endl;
+        return false;
+    }
+
+    ofstream ofs(out_file, ios::app);
+    if (!ofs.is_open()) {
+        cerr << "Failed to open output file: "s << out_file << endl;
+        return false;
+    }
+
+    string line;
+    regex quotes(R"/(\s*#\s*include\s*"([^"]*)"\s*)/");
+    regex brackets(R"/(\s*#\s*include\s*<([^>]*)>\s*)/");
+    size_t line_number = 0;
+
+    while (getline(ifs, line)) {
+        ++line_number;
+        smatch match;
+        bool found = false;
+        if (regex_match(line, match, quotes)) {
+            path file_name(match[1].str());
+            path include_path = in_file.parent_path() / file_name;
+            if (filesystem::exists(include_path)) {
+                found = true;
+                if (!Preprocess(include_path, out_file, include_directories)) {
+                    return false;
+                }
+            } else {
+                for (const auto& dir : include_directories) {
+                    include_path = dir / file_name;
+                    if (filesystem::exists(include_path)) {
+                        found = true;
+                        if (!Preprocess(include_path, out_file, include_directories)) {
+                            return false;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                cout << "unknown include file "s << file_name.string() 
+                    << " at file "s << in_file.string()
+                    << " at line "s << line_number << endl;
+                return false;
+            }
+
+        } else if (regex_match(line, match, brackets)) {
+            path file_name(match[1].str());
+            for (const auto& dir : include_directories) {
+                path include_path = dir / file_name;
+                if (filesystem::exists(include_path)) {
+                    found = true;
+                    if (!Preprocess(include_path, out_file, include_directories)) {
+                        return false;
+                    }
+                    break;
+                }
+            }
+
+            if (!found) {
+                cout << "unknown include file "s << file_name.string()
+                    << " at file "s << in_file.string()
+                    << " at line "s << line_number << endl;
+                return false;
+            }
+
+        } else {
+            ofs << line << endl;
+        }
+    }
+    return true;
+}
 
 string GetFileContents(string file) {
     ifstream stream(file);
