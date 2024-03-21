@@ -14,6 +14,24 @@ path operator""_p(const char* data, std::size_t sz) {
     return path(data, data + sz);
 }
 
+bool Preprocess(const path&, const path&, const vector<path>&);
+
+bool PrintToOutFile(const path& file_name, const path& out_file,
+       const vector<path>& include_directories) {
+    bool found = false;
+    for (const auto& dir : include_directories) {
+        path include_path = dir / file_name;
+        if (filesystem::exists(include_path)) {
+            found = true;
+            if (!Preprocess(include_path, out_file, include_directories)) {
+                return false;
+            }
+            break;
+        }
+    }
+    return found;
+}
+
 bool Preprocess(const path& in_file, const path& out_file,
                 const vector<path>& include_directories) {
     ifstream ifs(in_file);
@@ -46,16 +64,7 @@ bool Preprocess(const path& in_file, const path& out_file,
                     return false;
                 }
             } else {
-                for (const auto& dir : include_directories) {
-                    include_path = dir / file_name;
-                    if (filesystem::exists(include_path)) {
-                        found = true;
-                        if (!Preprocess(include_path, out_file, include_directories)) {
-                            return false;
-                        }
-                        break;
-                    }
-                }
+                found = PrintToOutFile(file_name, out_file, include_directories);
             }
 
             if (!found) {
@@ -67,16 +76,7 @@ bool Preprocess(const path& in_file, const path& out_file,
 
         } else if (regex_match(line, match, brackets)) {
             path file_name(match[1].str());
-            for (const auto& dir : include_directories) {
-                path include_path = dir / file_name;
-                if (filesystem::exists(include_path)) {
-                    found = true;
-                    if (!Preprocess(include_path, out_file, include_directories)) {
-                        return false;
-                    }
-                    break;
-                }
-            }
+            found = PrintToOutFile(file_name, out_file, include_directories);
 
             if (!found) {
                 cout << "unknown include file "s << file_name.string()
