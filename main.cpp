@@ -16,7 +16,7 @@ path operator""_p(const char* data, std::size_t sz) {
 
 bool Preprocess(const path&, const path&, const vector<path>&);
 
-bool PrintToOutFile(const path& file_name, const path& out_file,
+bool FindInDirectories(const path& file_name, const path& out_file,
        const vector<path>& include_directories) {
     bool found = false;
     for (const auto& dir : include_directories) {
@@ -64,7 +64,7 @@ bool Preprocess(const path& in_file, const path& out_file,
                     return false;
                 }
             } else {
-                found = PrintToOutFile(file_name, out_file, include_directories);
+                found = FindInDirectories(file_name, out_file, include_directories);
             }
 
             if (!found) {
@@ -76,7 +76,7 @@ bool Preprocess(const path& in_file, const path& out_file,
 
         } else if (regex_match(line, match, brackets)) {
             path file_name(match[1].str());
-            found = PrintToOutFile(file_name, out_file, include_directories);
+            found = FindInDirectories(file_name, out_file, include_directories);
 
             if (!found) {
                 cout << "unknown include file "s << file_name.string()
